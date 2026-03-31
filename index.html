@@ -17,9 +17,15 @@
             touch-action: none; /* Prevents browser zooming/scrolling */
             user-select: none;
             -webkit-user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
             display: block;
             width: 100%;
             height: 100%;
@@ -27,32 +33,44 @@
                 linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
             background-size: 30px 30px; /* Futuristic grid background */
+            z-index: 1;
         }
 
-        #ui-layer {
-            position: absolute;
-            top: 10px;
-            left: 10px;
+        /* Futuristic Glowing Start Button */
+        #startButton {
+            position: relative;
+            z-index: 10;
+            padding: 15px 40px;
+            font-size: 28px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
             color: #00ff00;
-            font-size: 14px;
-            pointer-events: none;
-            text-shadow: 0 0 5px #00ff00;
+            background-color: rgba(0, 255, 0, 0.05);
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5), inset 0 0 10px rgba(0, 255, 0, 0.2);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        #startButton:active {
+            background-color: #00ff00;
+            color: #020a02;
+            box-shadow: 0 0 30px #00ff00, inset 0 0 20px #00ff00;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        > SYSTEM.READY<br>
-        > AWAITING_INPUT...
-    </div>
-    
+    <button id="startButton">START</button>
     <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const uiLayer = document.getElementById('ui-layer');
+        const startButton = document.getElementById('startButton');
 
         // Resize canvas to fill the screen
         function resizeCanvas() {
@@ -64,7 +82,7 @@
 
         // Game State Variables
         let touches = {};
-        let phase = 'waiting'; // 'waiting', 'countdown', 'roulette', 'winner'
+        let phase = 'init'; // 'init', 'waiting', 'countdown', 'roulette', 'winner'
         let countdownTimer = null;
         let countdownValue = 3;
         let rouletteInterval = null;
@@ -78,10 +96,18 @@
         const COLOR_WINNER = '#ff0000'; // Red for the chosen one
         const COLOR_DIM = '#004400'; // Dim green for losers
 
+        // Start Button Logic
+        startButton.addEventListener('click', () => {
+            startButton.style.display = 'none';
+            phase = 'waiting';
+        });
+
         // Handle multi-touch events
         function handleTouches(e) {
             e.preventDefault(); // Stop default browser behaviors
             
+            if (phase === 'init') return; // Ignore touches until START is pressed
+
             touches = {};
             for (let i = 0; i < e.touches.length; i++) {
                 touches[e.touches[i].identifier] = {
@@ -92,7 +118,7 @@
             updateGameState();
         }
 
-        // Attach touch listeners (passive: false is required to allow preventDefault)
+        // Attach touch listeners
         canvas.addEventListener('touchstart', handleTouches, { passive: false });
         canvas.addEventListener('touchmove', handleTouches, { passive: false });
         canvas.addEventListener('touchend', handleTouches, { passive: false });
@@ -100,7 +126,6 @@
 
         function updateGameState() {
             const numTouches = Object.keys(touches).length;
-            uiLayer.innerHTML = `> ACTIVE_CONNECTIONS: ${numTouches}<br>> STATUS: ${phase.toUpperCase()}`;
 
             if (phase === 'waiting') {
                 if (numTouches >= 2) {
@@ -147,7 +172,6 @@
                 if (keys.length > 0) {
                     winnerTouchId = keys[Math.floor(Math.random() * keys.length)];
                     phase = 'winner';
-                    uiLayer.innerHTML += '<br>> TARGET_ACQUIRED.';
                 } else {
                     resetGame();
                 }
@@ -161,7 +185,6 @@
             phase = 'waiting';
             highlightedTouchId = null;
             winnerTouchId = null;
-            updateGameState();
         }
 
         // Render Loop
@@ -169,6 +192,18 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const keys = Object.keys(touches);
+
+            // Draw "Waiting" Text if no fingers are down
+            if (phase === 'waiting' && keys.length === 0) {
+                ctx.fillStyle = COLOR_DEFAULT;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = COLOR_DEFAULT;
+                ctx.font = '24px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('> PLACE FINGERS <', canvas.width / 2, canvas.height / 2);
+                ctx.shadowBlur = 0;
+            }
 
             // Draw Countdown
             if (phase === 'countdown') {
@@ -182,7 +217,7 @@
                 
                 ctx.font = '20px Courier New';
                 ctx.fillText('HOLD STEADY...', canvas.width / 2, canvas.height / 2 + 80);
-                ctx.shadowBlur = 0; // reset
+                ctx.shadowBlur = 0; 
             }
 
             // Draw Fingers
@@ -223,7 +258,7 @@
                     ctx.fillText('[ SELECTED ]', touch.x, touch.y - 100);
                 }
                 
-                ctx.shadowBlur = 0; // Reset shadow for next draw
+                ctx.shadowBlur = 0; 
             });
 
             requestAnimationFrame(draw);
