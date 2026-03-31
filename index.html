@@ -1,130 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>CoolChooser</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap" rel="stylesheet">
-<!-- Font Awesome for icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal Selector</title>
+    <style>
+        /* Terminal / Futuristic Theme styling */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #020a02; /* Very dark green/black */
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none; /* Prevents browser zooming/scrolling */
+            user-select: none;
+            -webkit-user-select: none;
+        }
 
-<style>
-  html, body {
-    margin:0;
-    padding:0;
-    font-family: 'Roboto', sans-serif;
-    height:100%;
-    overflow-x:hidden;
-    background: linear-gradient(160deg, #FFB347, #FF7E5F);
-    display:flex;
-    flex-direction: column;
-    align-items: center;
-  }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px; /* Futuristic grid background */
+        }
 
-  header {
-    width:100%;
-    padding:20px;
-    display:flex;
-    justify-content: space-between;
-    align-items:center;
-  }
-
-  h1 { 
-    margin:0; 
-    font-size:28px; 
-    color:#fff;
-    text-shadow: 1px 1px 4px rgba(0,0,0,0.3);
-  }
-
-  .info-btn {
-    background: rgba(255,255,255,0.2);
-    border:none;
-    color:white;
-    font-size:24px;
-    padding:8px 12px;
-    border-radius:50%;
-    cursor:pointer;
-    transition:0.3s;
-  }
-  .info-btn:hover { background: rgba(255,255,255,0.35); }
-
-  main {
-    flex:1;
-    width:100%;
-    display:flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap:20px;
-  }
-
-  .game-btn {
-    width:80%;
-    max-width:350px;
-    padding:18px;
-    font-size:20px;
-    font-weight:bold;
-    border:none;
-    border-radius:20px;
-    background: rgba(255,255,255,0.2);
-    color:#fff;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:15px;
-    cursor:pointer;
-    box-shadow:0 6px 15px rgba(0,0,0,0.3);
-    transition:0.3s;
-  }
-
-  .game-btn:hover { 
-    background: rgba(255,255,255,0.35);
-  }
-
-  .game-btn i {
-    font-size:28px;
-  }
-
-  /* Portrait mode */
-  @media screen and (orientation: landscape) {
-    body::after {
-      content: "Please rotate your device to portrait mode!";
-      position: fixed;
-      top:0; left:0;
-      width:100%;
-      height:100%;
-      background:#FF7E5F;
-      color:white;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      text-align:center;
-      font-size:24px;
-      z-index:9999;
-    }
-  }
-</style>
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ff00;
+            font-size: 14px;
+            pointer-events: none;
+            text-shadow: 0 0 5px #00ff00;
+        }
+    </style>
 </head>
 <body>
 
-<header>
-  <h1>CoolChooser</h1>
-  <button class="info-btn" onclick="location.href='info.html'">
-    <i class="fas fa-circle-info"></i>
-  </button>
-</header>
+    <div id="ui-layer">
+        > SYSTEM.READY<br>
+        > AWAITING_INPUT...
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
 
-<main>
-  <button class="game-btn" onclick="location.href='finger.html'">
-    <i class="fas fa-hand-pointer"></i> Finger Game
-  </button>
-  <button class="game-btn" onclick="location.href='name.html'">
-    <i class="fas fa-user-friends"></i> Name Spinner
-  </button>
-  <button class="game-btn" onclick="location.href='number.html'">
-    <i class="fas fa-dice"></i> Random Number
-  </button>
-</main>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const uiLayer = document.getElementById('ui-layer');
 
+        // Resize canvas to fill the screen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Game State Variables
+        let touches = {};
+        let phase = 'waiting'; // 'waiting', 'countdown', 'roulette', 'winner'
+        let countdownTimer = null;
+        let countdownValue = 3;
+        let rouletteInterval = null;
+        let rouletteTimeout = null;
+        let highlightedTouchId = null;
+        let winnerTouchId = null;
+
+        // Colors
+        const COLOR_DEFAULT = '#00ff00'; // Neon Green
+        const COLOR_HIGHLIGHT = '#ffffff'; // White flash for roulette
+        const COLOR_WINNER = '#ff0000'; // Red for the chosen one
+        const COLOR_DIM = '#004400'; // Dim green for losers
+
+        // Handle multi-touch events
+        function handleTouches(e) {
+            e.preventDefault(); // Stop default browser behaviors
+            
+            touches = {};
+            for (let i = 0; i < e.touches.length; i++) {
+                touches[e.touches[i].identifier] = {
+                    x: e.touches[i].clientX,
+                    y: e.touches[i].clientY
+                };
+            }
+            updateGameState();
+        }
+
+        // Attach touch listeners (passive: false is required to allow preventDefault)
+        canvas.addEventListener('touchstart', handleTouches, { passive: false });
+        canvas.addEventListener('touchmove', handleTouches, { passive: false });
+        canvas.addEventListener('touchend', handleTouches, { passive: false });
+        canvas.addEventListener('touchcancel', handleTouches, { passive: false });
+
+        function updateGameState() {
+            const numTouches = Object.keys(touches).length;
+            uiLayer.innerHTML = `> ACTIVE_CONNECTIONS: ${numTouches}<br>> STATUS: ${phase.toUpperCase()}`;
+
+            if (phase === 'waiting') {
+                if (numTouches >= 2) {
+                    startCountdown();
+                }
+            } else if (phase === 'countdown') {
+                if (numTouches < 2) {
+                    resetGame(); // Cancel if someone lets go early
+                }
+            } else if (phase === 'winner' || phase === 'roulette') {
+                if (numTouches === 0) {
+                    resetGame(); // Reset when everyone lets go
+                }
+            }
+        }
+
+        function startCountdown() {
+            phase = 'countdown';
+            countdownValue = 3;
+            
+            countdownTimer = setInterval(() => {
+                countdownValue--;
+                if (countdownValue <= 0) {
+                    clearInterval(countdownTimer);
+                    startRoulette();
+                }
+            }, 1000);
+        }
+
+        function startRoulette() {
+            phase = 'roulette';
+            
+            // Rapidly flash random fingers
+            rouletteInterval = setInterval(() => {
+                const keys = Object.keys(touches);
+                if (keys.length === 0) return resetGame();
+                highlightedTouchId = keys[Math.floor(Math.random() * keys.length)];
+            }, 150);
+
+            // Settle on a winner after 2.5 seconds
+            rouletteTimeout = setTimeout(() => {
+                clearInterval(rouletteInterval);
+                const keys = Object.keys(touches);
+                if (keys.length > 0) {
+                    winnerTouchId = keys[Math.floor(Math.random() * keys.length)];
+                    phase = 'winner';
+                    uiLayer.innerHTML += '<br>> TARGET_ACQUIRED.';
+                } else {
+                    resetGame();
+                }
+            }, 2500);
+        }
+
+        function resetGame() {
+            clearInterval(countdownTimer);
+            clearInterval(rouletteInterval);
+            clearTimeout(rouletteTimeout);
+            phase = 'waiting';
+            highlightedTouchId = null;
+            winnerTouchId = null;
+            updateGameState();
+        }
+
+        // Render Loop
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const keys = Object.keys(touches);
+
+            // Draw Countdown
+            if (phase === 'countdown') {
+                ctx.fillStyle = COLOR_DEFAULT;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = COLOR_DEFAULT;
+                ctx.font = 'bold 120px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(countdownValue, canvas.width / 2, canvas.height / 2);
+                
+                ctx.font = '20px Courier New';
+                ctx.fillText('HOLD STEADY...', canvas.width / 2, canvas.height / 2 + 80);
+                ctx.shadowBlur = 0; // reset
+            }
+
+            // Draw Fingers
+            keys.forEach(id => {
+                const touch = touches[id];
+                let color = COLOR_DEFAULT;
+                let radius = 50;
+
+                if (phase === 'roulette') {
+                    color = (id === highlightedTouchId) ? COLOR_HIGHLIGHT : COLOR_DEFAULT;
+                    radius = (id === highlightedTouchId) ? 60 : 50;
+                } else if (phase === 'winner') {
+                    color = (id === winnerTouchId) ? COLOR_WINNER : COLOR_DIM;
+                    radius = (id === winnerTouchId) ? 70 : 40;
+                }
+
+                // Add Glow Effect
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = color;
+
+                // Outer Circle
+                ctx.beginPath();
+                ctx.arc(touch.x, touch.y, radius, 0, Math.PI * 2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = (phase === 'winner' && id === winnerTouchId) ? 8 : 4;
+                ctx.stroke();
+
+                // Inner Dot
+                ctx.beginPath();
+                ctx.arc(touch.x, touch.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                // Winner Text
+                if (phase === 'winner' && id === winnerTouchId) {
+                    ctx.font = 'bold 24px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('[ SELECTED ]', touch.x, touch.y - 100);
+                }
+                
+                ctx.shadowBlur = 0; // Reset shadow for next draw
+            });
+
+            requestAnimationFrame(draw);
+        }
+
+        // Start render loop
+        draw();
+    </script>
 </body>
 </html>
