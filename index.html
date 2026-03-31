@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random Finger Selector</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, #89f7fe, #66a6ff);
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1 {
+    color: #fff;
+    text-shadow: 1px 1px 5px rgba(0,0,0,0.3);
+  }
+
+  p {
+    color: #fff;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+  }
+
+  #canvas {
+    border-radius: 20px;
+    border: 2px solid rgba(255,255,255,0.7);
+    background: rgba(255, 255, 255, 0.2);
+    touch-action: none;
+    width: 100%;
+    max-width: 500px;
+    height: 400px;
+    margin-top: 20px;
+  }
+
+  .button {
+    margin: 20px;
+    padding: 15px 30px;
+    font-size: 20px;
+    border: none;
+    border-radius: 10px;
+    background: #ff7e5f;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+
+  .button:hover {
+    background: #feb47b;
+  }
+
+  #result {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* Finger animation */
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Random Finger Selector</h1>
+<p>Touch or click multiple points. Press "Go" to select one!</p>
+<canvas id="canvas"></canvas><br>
+<button class="button" onclick="chooseRandomFinger()">Go</button>
+<p id="result"></p>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = canvas.clientWidth;
+canvas.height = canvas.clientHeight;
+
+let fingers = [];
+
+// Draw finger positions
+function drawFingers(highlightIndex = -1) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  fingers.forEach((f, i) => {
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, 25, 0, Math.PI * 2);
+    ctx.fillStyle = (i === highlightIndex) ? 'red' : 'rgba(255,255,255,0.8)';
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.fillStyle = (i === highlightIndex) ? '#fff' : '#333';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, f.x, f.y);
+  });
+}
+
+// Track multiple touches
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  fingers = [];
+  for (let t of e.touches) {
+    fingers.push({ x: t.clientX - canvas.getBoundingClientRect().left, 
+                   y: t.clientY - canvas.getBoundingClientRect().top });
+  }
+  drawFingers();
+});
+
+// Allow mouse clicks for desktop
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  fingers.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  drawFingers();
+});
+
+// Randomly choose a finger
+function chooseRandomFinger() {
+  if (fingers.length === 0) {
+    document.getElementById('result').textContent = "No fingers detected!";
+    return;
+  }
+  const randomIndex = Math.floor(Math.random() * fingers.length);
+  document.getElementById('result').textContent = `Finger #${randomIndex + 1} selected!`;
+
+  // Animate highlight
+  let pulse = 0;
+  const interval = setInterval(() => {
+    drawFingers(randomIndex);
+    pulse++;
+    if (pulse > 6) clearInterval(interval);
+  }, 200);
+}
+</script>
+
+</body>
+</html>
