@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Finger Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+html, body {
+  margin:0; padding:0;
+  font-family:'Roboto',sans-serif;
+  height:100%;
+  background: linear-gradient(160deg, #FFB347, #FF7E5F);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+header {
+  width:100%;
+  display:flex;
+  justify-content:flex-start;
+  padding:15px;
+}
+.back-btn {
+  padding:10px 15px;
+  font-size:16px;
+  border:none;
+  border-radius:12px;
+  background: rgba(255,255,255,0.2);
+  color:#fff;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.2);
+}
+#canvas {
+  margin-top:20px;
+  border-radius:20px;
+  width:90%;
+  max-width:500px;
+  height:400px;
+  background: rgba(255,255,255,0.2);
+  touch-action:none;
+}
+.button-go {
+  margin-top:15px;
+  padding:15px 40px;
+  font-size:20px;
+  border:none;
+  border-radius:12px;
+  background: rgba(255,255,255,0.2);
+  color:#fff;
+  cursor:pointer;
+  box-shadow:0 3px 8px rgba(0,0,0,0.2);
+}
+#result {
+  margin-top:12px;
+  font-size:22px;
+  font-weight:bold;
+}
+@media screen and (orientation: landscape) {
+  body::after {
+    content:"Please rotate your device to portrait mode!";
+    position: fixed;
+    top:0; left:0;
+    width:100%;
+    height:100%;
+    background:#FF7E5F;
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    font-size:24px;
+    z-index:9999;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" onclick="location.href='index.html'">
+    <i class="fas fa-home"></i> Home
+  </button>
+</header>
+
+<canvas id="canvas"></canvas>
+<button class="button-go" onclick="chooseRandomFinger()">Go!</button>
+<p id="result"></p>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+canvas.width=canvas.clientWidth;
+canvas.height=canvas.clientHeight;
+let fingers=[];
+function drawFingers(highlightIndex=-1){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  fingers.forEach((f,i)=>{
+    ctx.beginPath();
+    let radius=f.radius||30;
+    ctx.arc(f.x,f.y,radius,0,Math.PI*2);
+    ctx.fillStyle=(i===highlightIndex)?'rgba(255,0,0,0.7)':'rgba(255,255,255,0.7)';
+    ctx.shadowColor=(i===highlightIndex)?'rgba(255,0,0,0.8)':'rgba(0,0,0,0.3)';
+    ctx.shadowBlur=(i===highlightIndex)?20:10;
+    ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.font='bold 18px Arial';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(i+1,f.x,f.y);
+  });
+}
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  fingers=[];
+  for(let t of e.touches){
+    let avgRadius=t.radiusX&&t.radiusY?(t.radiusX+t.radiusY)*10:30;
+    fingers.push({x:t.clientX-canvas.getBoundingClientRect().left,
+                  y:t.clientY-canvas.getBoundingClientRect().top,
+                  radius:avgRadius});
+  }
+  drawFingers();
+});
+canvas.addEventListener('mousedown',e=>{
+  const rect=canvas.getBoundingClientRect();
+  fingers.push({x:e.clientX-rect.left,y:e.clientY-rect.top,radius:30});
+  drawFingers();
+});
+function chooseRandomFinger(){
+  if(fingers.length===0){document.getElementById('result').textContent="Place fingers first!";return;}
+  const selectedIndex=Math.floor(Math.random()*fingers.length);
+  document.getElementById('result').textContent=`Finger #${selectedIndex+1} selected!`;
+  let pulseCount=0;
+  const pulse=setInterval(()=>{
+    drawFingers(selectedIndex);
+    pulseCount++;
+    if(pulseCount>8) clearInterval(pulse);
+  },150);
+}
+</script>
+</body>
+</html>
